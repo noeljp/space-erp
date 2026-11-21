@@ -2,7 +2,9 @@
 
 ## SPACE ERP — Dossier de lancement Codex
 
-**Statut :** spécification de départ, non application développée. **Langue produit :** français. **Domaine :** fabrication d'équipements électroniques spatiaux.
+**Statut :** lots 0 et 1 implémentés pour la démonstration. **Langue produit :** français. **Domaine :** fabrication d'équipements électroniques spatiaux.
+
+Voir le [guide de démarrage](docs/DEMARRAGE.md) pour lancer et tester le pointage.
 
 ## Objectif
 Construire une plateforme métier autonome et unifiée, sans dépendance à SAP, Jira, PALMA, Windchill, Suivat ou à un MES externe. Les bibliothèques techniques open source sont autorisées, après vérification de leurs licences et de leur maintenance.

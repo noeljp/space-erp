@@ -1,0 +1,34 @@
+services:
+  db:
+    image: postgres:18.7-alpine
+    environment:
+      POSTGRES_USER: space_erp
+      POSTGRES_DB: space_erp
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Exécuter scripts/init-demo.sh}
+    volumes:
+      - postgres:/var/lib/postgresql
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U space_erp']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  api:
+    build: ./backend
+    environment:
+      PGHOST: db
+      PGUSER: space_erp
+      PGDATABASE: space_erp
+      PGPASSWORD: ${POSTGRES_PASSWORD:?Exécuter scripts/init-demo.sh}
+      SUPERVISOR_PASSWORD: ${SUPERVISOR_PASSWORD:?Exécuter scripts/init-demo.sh}
+      OPERATOR_A_PASSWORD: ${OPERATOR_A_PASSWORD:?Exécuter scripts/init-demo.sh}
+      OPERATOR_B_PASSWORD: ${OPERATOR_B_PASSWORD:?Exécuter scripts/init-demo.sh}
+    depends_on:
+      db:
+        condition: service_healthy
+  web:
+    build: ./frontend
+    ports:
+      - "127.0.0.1:${SPACE_ERP_PORT:-8080}:80"
+    depends_on: [api]
+volumes:
+  postgres:
