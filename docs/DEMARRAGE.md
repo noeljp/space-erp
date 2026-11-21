@@ -16,7 +16,7 @@ Ouvrir http://127.0.0.1:8080. La migration SQLx et la création des comptes s’
 
 ## Parcours atelier
 
-Le superviseur crée un OF avec un numéro unique, une description et une quantité. Les opérateurs se connectent dans deux navigateurs ou fenêtres privées distinctes, puis démarrent sur le même OF. Chacun termine sa propre session. Le superviseur clique sur **Actualiser** pour consulter les durées, le total des pointages terminés et l’audit. L’OF reste ouvert.
+Le superviseur crée une révision dans **Articles et révisions**, puis la sélectionne en créant un OF avec un numéro unique, une description et une quantité. Les OF antérieurs à cette migration restent consultables et utilisables pour le pointage. Les opérateurs se connectent dans deux navigateurs ou fenêtres privées distinctes, puis démarrent sur le même OF. Chacun termine sa propre session. Le superviseur clique sur **Actualiser** pour consulter les durées, le total des pointages terminés et l’audit. L’OF reste ouvert.
 
 ## API de démonstration
 
@@ -27,7 +27,8 @@ Toutes les routes portent le préfixe `/api/v1`. Après connexion, transmettre l
 | `GET /health` | Disponibilité de l’API et de PostgreSQL |
 | `POST /login` | Connexion avec `username` et `password` |
 | `GET /me`, `POST /logout` | Profil et révocation du jeton |
-| `GET /orders`, `POST /orders` | Liste des OF. Création par le superviseur avec `number`, `description` et `quantity` |
+| `GET /item-revisions`, `POST /item-revisions` | Liste des révisions. Création par le superviseur avec `part_number`, `revision` et `description` |
+| `GET /orders`, `POST /orders` | Liste des OF. Création par le superviseur avec `number`, `description`, `quantity` et `item_revision_id`. La liste expose `part_number` et `revision` |
 | `GET /sessions` | Pointages propres à l’opérateur ou ensemble pour le superviseur |
 | `POST /orders/{id}/sessions` | Démarrer sur un OF ouvert. Réponse 409 si l’opérateur pointe déjà |
 | `POST /sessions/{id}/stop` | Terminer son propre pointage. Un nouvel arrêt de la même session réussit sans nouvel audit |
@@ -41,7 +42,7 @@ Toutes les routes portent le préfixe `/api/v1`. Après connexion, transmettre l
 python3 scripts/smoke.py
 ```
 
-Le test crée un OF fictif dans l’instance démarrée. Il contrôle les rôles, deux démarrages concurrents du même opérateur, la simultanéité entre opérateurs, l’arrêt, le total et l’audit. Les procédures d’essai nécessitent uniquement des comptes de démonstration.
+Le test crée un OF fictif dans l’instance démarrée. Il contrôle la création des révisions, le rejet des doublons et des révisions inconnues, la configuration de l’OF, les rôles, deux démarrages concurrents du même opérateur, la simultanéité entre opérateurs, l’arrêt, le total et l’audit. Les procédures d’essai nécessitent uniquement des comptes de démonstration.
 
 ## Sauvegarde et restauration
 
@@ -58,4 +59,4 @@ docker compose exec -T db pg_restore --exit-on-error -U space_erp -d space_erp_r
 
 ## Périmètre
 
-Démonstration locale avec comptes fictifs, mots de passe Argon2id et jetons expirants. Le déploiement industriel, le SSO, la gestion des comptes, les corrections de pointage, la clôture d’OF, les articles et révisions, le MRP, les FAP et les OMM restent à développer. Le frontal conserve le jeton en mémoire. Un rechargement de page demande une reconnexion et les pointages restent enregistrés.
+Démonstration locale avec comptes fictifs, mots de passe Argon2id et jetons expirants. Le déploiement industriel, le SSO, la gestion des comptes, les corrections de pointage, la clôture d’OF, les nomenclatures et les gammes, le MRP, les FAP et les OMM restent à développer. Le frontal conserve le jeton en mémoire. Un rechargement de page demande une reconnexion et les pointages restent enregistrés.

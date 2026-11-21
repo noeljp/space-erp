@@ -3,7 +3,8 @@ import { createRoot } from "react-dom/client";
 import "./style.css";
 
 type User = { display_name: string; role: "operator" | "supervisor" };
-type Order = { id: number; number: string; description: string; quantity: number; status: string; total_seconds: number };
+type Revision = { id: number; part_number: string; revision: string; description: string };
+type Order = { id: number; number: string; description: string; quantity: number; status: string; total_seconds: number; part_number: string | null; revision: string | null };
 type Session = { id: number; work_order_id: number; operator_name: string; started_at: string; ended_at: string | null };
 type Audit = { id: number; action: string; actor: string; entity_id: number; occurred_at: string };
 
@@ -26,6 +27,7 @@ async function api<T>(path: string, token = "", method = "GET", body?: object): 
 const date = new Intl.DateTimeFormat("fr-BE", { dateStyle: "short", timeStyle: "medium" });
 const hours = new Intl.NumberFormat("fr-BE", { maximumFractionDigits: 4 });
 const actions: Record<string, string> = {
+  "article.revision_creation": "Création de révision article",
   "of.creation": "Création d’OF",
   "pointage.debut": "Début de pointage",
   "pointage.fin": "Fin de pointage",
@@ -39,6 +41,7 @@ function elapsed(seconds: number) {
 
 function App() {
   const [session, setSession] = useState<{ token: string; user: User }>();
+  const [revisions, setRevisions] = useState<Revision[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [audit, setAudit] = useState<Audit[]>([]);
@@ -55,11 +58,13 @@ function App() {
   }, [active]);
 
   async function refresh(token: string, user: User) {
-    const [newOrders, newSessions, newAudit] = await Promise.all([
+    const [newOrders, newSessions, newAudit, newRevisions] = await Promise.all([
       api<Order[]>("/orders", token),
       api<Session[]>("/sessions", token),
       user.role === "supervisor" ? api<Audit[]>("/audit", token) : Promise.resolve([]),
+      user.role === "supervisor" ? api<Revision[]>("/item-revisions", token) : Promise.resolve([]),
     ]);
+    setRevisions(newRevisions);
     setOrders(newOrders);
     setSessions(newSessions);
     setAudit(newAudit);
@@ -99,11 +104,17 @@ function App() {
     });
   }
 
+  function createRevision(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    mutate("/item-revisions", Object.fromEntries(new FormData(form)), form);
+  }
+
   function create(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
     const data = new FormData(form);
-    mutate("/orders", { number: data.get("number"), description: data.get("description"), quantity: Number(data.get("quantity")) }, form);
+    mutate("/orders", { number: data.get("number"), description: data.get("description"), quantity: Number(data.get("quantity")), item_revision_id: Number(data.get("item_revision_id")) }, form);
   }
 
   return <>
@@ -131,19 +142,37 @@ function App() {
           <time>{elapsed((now - Date.parse(active.started_at)) / 1000)}</time>
           <button className="primary" disabled={busy} onClick={() => mutate("/sessions/" + active.id + "/stop")}>Terminer</button>
         </section>}
+        {supervisor && <section className="panel"><h2>Articles et révisions</h2>
+          <form onSubmit={createRevision} className="create">
+            <label>Référence article<input name="part_number" maxLength={80} required /></label>
+            <label>Révision<input name="revision" maxLength={40} required /></label>
+            <label>Description de la révision<input name="description" maxLength={250} required /></label>
+            <button className="primary" disabled={busy}>Créer la révision</button>
+          </form>
+          {revisions.length > 0 && <div className="scroll"><table>
+            <thead><tr><th>Article</th><th>Révision</th><th>Description</th></tr></thead>
+            <tbody>{revisions.map(item => <tr key={item.id}>
+              <th scope="row">{item.part_number}</th><td>{item.revision}</td><td>{item.description}</td>
+            </tr>)}</tbody>
+          </table></div>}
+        </section>}
         {supervisor && <section className="panel"><h2>Créer un ordre de fabrication</h2>
           <form onSubmit={create} className="create">
             <label>Numéro d’OF<input name="number" maxLength={80} required /></label>
             <label>Description<input name="description" maxLength={250} required /></label>
             <label>Quantité<input name="quantity" type="number" min="1" max="2147483647" defaultValue="1" required /></label>
-            <button className="primary" disabled={busy}>Créer l’OF</button>
+            <label>Révision d’article<select name="item_revision_id" defaultValue="" required>
+              <option value="" disabled>{revisions.length ? "Sélectionner une révision" : "Créez d’abord une révision"}</option>
+              {revisions.map(item => <option key={item.id} value={item.id}>{item.part_number} · {item.revision}</option>)}
+            </select></label>
+            <button className="primary" disabled={busy || revisions.length === 0}>Créer l’OF</button>
           </form>
         </section>}
         <section className="panel"><h2>Ordres de fabrication</h2>
           {orders.length === 0 ? <p>Aucun ordre de fabrication.</p> : <div className="scroll"><table>
-            <thead><tr><th>OF</th><th>Description</th><th>Quantité</th><th>État</th><th>Heures terminées</th>{!supervisor && <th>Action</th>}</tr></thead>
+            <thead><tr><th>OF</th><th>Configuration</th><th>Description</th><th>Quantité</th><th>État</th><th>Heures terminées</th>{!supervisor && <th>Action</th>}</tr></thead>
             <tbody>{orders.map(order => <tr key={order.id}>
-              <th scope="row">{order.number}</th><td>{order.description}</td><td>{order.quantity}</td>
+              <th scope="row">{order.number}</th><td>{order.part_number ? order.part_number + " · " + order.revision : "Aucune révision"}</td><td>{order.description}</td><td>{order.quantity}</td>
               <td>{order.status === "open" ? "Ouvert" : "Clos"}</td><td>{hours.format(order.total_seconds / 3600)} h</td>
               {!supervisor && <td><button className="primary" disabled={busy || Boolean(active) || order.status !== "open"}
                 onClick={() => mutate("/orders/" + order.id + "/sessions")}>Démarrer</button></td>}

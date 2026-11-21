@@ -46,7 +46,15 @@ supervisor = login("superviseur", "SUPERVISOR_PASSWORD")
 operator_a = login("operateur-a", "OPERATOR_A_PASSWORD")
 operator_b = login("operateur-b", "OPERATOR_B_PASSWORD")
 number = f"DEMO-{uuid.uuid4().hex[:10]}"
-order = {"number": number, "description": "Équipement fictif", "quantity": 1}
+revision = {"part_number": number, "revision": "A", "description": "Équipement fictif"}
+expect(403, "/item-revisions", operator_a, "POST", revision)
+revision_id = expect(201, "/item-revisions", supervisor, "POST", revision)["id"]
+expect(409, "/item-revisions", supervisor, "POST", revision)
+expect(201, "/item-revisions", supervisor, "POST", {**revision, "revision": "B"})
+assert {"id": revision_id, **revision} in expect(200, "/item-revisions", supervisor)
+order = {"number": number, "description": "Équipement fictif", "quantity": 1,
+         "item_revision_id": revision_id}
+expect(400, "/orders", supervisor, "POST", {**order, "item_revision_id": -1})
 expect(403, "/orders", operator_a, "POST", order)
 order_id = expect(201, "/orders", supervisor, "POST", order)["id"]
 start_path = f"/orders/{order_id}/sessions"
@@ -70,9 +78,12 @@ parse = datetime.datetime.fromisoformat
 durations = [(parse(item["ended_at"]) - parse(item["started_at"])).total_seconds() for item in records]
 assert all(duration > 0 for duration in durations), durations
 final_order = next(item for item in expect(200, "/orders", supervisor) if item["id"] == order_id)
+assert (final_order["part_number"], final_order["revision"]) == (number, "A")
 assert final_order["status"] == "open" and math.isclose(final_order["total_seconds"], sum(durations), abs_tol=1e-6)
 expect(403, "/audit", operator_a)
 audit = expect(200, "/audit", supervisor)
+assert any(event["action"] == "article.revision_creation" and event["entity_id"] == revision_id
+           for event in audit)
 actions = [event["action"] for event in audit if event["payload"].get("work_order_id") == order_id
            or event["payload"].get("number") == number]
 assert sorted(actions) == ["of.creation", "pointage.debut", "pointage.debut", "pointage.fin", "pointage.fin"], actions

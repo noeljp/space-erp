@@ -1,4 +1,4 @@
-use crate::{ApiError, ApiResult, auth};
+use crate::{ApiError, ApiResult, audit, auth};
 use axum::{
     Json, Router,
     extract::{Path, State},
@@ -8,7 +8,7 @@ use axum::{
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use sqlx::{PgPool, Postgres, Transaction};
+use sqlx::PgPool;
 
 #[derive(Serialize, sqlx::FromRow)]
 struct Order {
@@ -18,10 +18,13 @@ struct Order {
     quantity: i32,
     status: String,
     total_seconds: f64,
+    part_number: Option<String>,
+    revision: Option<String>,
 }
 
 #[derive(Deserialize)]
 struct NewOrder {
+    item_revision_id: i64,
     number: String,
     description: String,
     quantity: i32,
@@ -36,34 +39,14 @@ struct Session {
     ended_at: Option<DateTime<Utc>>,
 }
 
-async fn audit(
-    tx: &mut Transaction<'_, Postgres>,
-    actor: i64,
-    action: &str,
-    entity: &str,
-    id: i64,
-    payload: Value,
-) -> ApiResult<()> {
-    sqlx::query(
-        "INSERT INTO core.audit_events (actor_id, action, entity_type, entity_id, payload)
-        VALUES ($1, $2, $3, $4, $5)",
-    )
-    .bind(actor)
-    .bind(action)
-    .bind(entity)
-    .bind(id)
-    .bind(payload)
-    .execute(&mut **tx)
-    .await?;
-    Ok(())
-}
-
 async fn orders(State(pool): State<PgPool>, headers: HeaderMap) -> ApiResult<Json<Vec<Order>>> {
     auth::user(&pool, &headers).await?;
-    Ok(Json(sqlx::query_as("SELECT o.id, o.number, o.description, o.quantity, o.status,
+    Ok(Json(sqlx::query_as("SELECT o.id, o.number, o.description, o.quantity, o.status, i.part_number, r.revision,
         COALESCE(SUM(EXTRACT(EPOCH FROM (s.ended_at - s.started_at))), 0)::float8 AS total_seconds
         FROM manufacturing.work_orders o LEFT JOIN manufacturing.work_sessions s ON s.work_order_id = o.id
-        GROUP BY o.id ORDER BY o.id DESC").fetch_all(&pool).await?))
+        LEFT JOIN engineering.item_revisions r ON r.id = o.item_revision_id
+        LEFT JOIN engineering.items i ON i.id = r.item_id
+        GROUP BY o.id, i.part_number, r.revision ORDER BY o.id DESC").fetch_all(&pool).await?))
 }
 
 async fn create(
@@ -88,12 +71,13 @@ async fn create(
     }
     let mut tx = pool.begin().await?;
     let id: i64 = sqlx::query_scalar(
-        "INSERT INTO manufacturing.work_orders (number, description, quantity)
-        VALUES ($1, $2, $3) RETURNING id",
+        "INSERT INTO manufacturing.work_orders (number, description, quantity, item_revision_id)
+        VALUES ($1, $2, $3, $4) RETURNING id",
     )
     .bind(number)
     .bind(description)
     .bind(input.quantity)
+    .bind(input.item_revision_id)
     .fetch_one(&mut *tx)
     .await?;
     audit(
@@ -102,7 +86,7 @@ async fn create(
         "of.creation",
         "of",
         id,
-        json!({"number": number}),
+        json!({"number": number, "item_revision_id": input.item_revision_id}),
     )
     .await?;
     tx.commit().await?;

@@ -2,7 +2,7 @@
 
 ## SPACE ERP — Dossier de lancement Codex
 
-**Statut :** lots 0 et 1 implémentés pour la démonstration. **Langue produit :** français. **Domaine :** fabrication d'équipements électroniques spatiaux.
+**Statut :** lots 0 et 1 implémentés pour la démonstration. Le lot 2 couvre déjà les révisions d’article et leur association aux OF. **Langue produit :** français. **Domaine :** fabrication d'équipements électroniques spatiaux.
 
 Voir le [guide de démarrage](docs/DEMARRAGE.md) pour lancer et tester le pointage.
 
