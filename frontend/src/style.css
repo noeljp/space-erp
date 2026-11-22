@@ -1,0 +1,31 @@
+:root { font: 16px/1.5 system-ui, sans-serif; color: #142638; background: #eef3f7; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+header { display: flex; align-items: center; gap: 1.5rem; padding: 1rem max(1rem, calc((100% - 1152px) / 2)); background: #102a3c; color: white; }
+header strong { letter-spacing: .1em; white-space: nowrap; }
+header span { color: #b9d3e1; }
+main { max-width: 1184px; margin: 2rem auto; padding: 0 1rem; }
+h1, h2, p { margin: 0; }
+h1 { font-size: clamp(1.6rem, 4vw, 2.5rem); line-height: 1.2; }
+h2 { margin-bottom: .65rem; font-size: 1.2rem; }
+.heading, .active, .actions { display: flex; align-items: center; justify-content: space-between; gap: .75rem; flex-wrap: wrap; }
+.heading { margin-bottom: 1.5rem; }
+.actions { justify-content: flex-start; }
+.panel { border: 1px solid #d4dfe8; border-radius: .75rem; padding: 1.25rem; margin-bottom: 1rem; background: white; }
+.active { border-color: #008075; background: #e9f7f3; }
+time { font: 700 1.6rem ui-monospace, monospace; }
+.login { max-width: 28rem; display: grid; gap: 1rem; }
+form.create { display: grid; grid-template-columns: minmax(8rem, 1fr) 2fr minmax(5rem, .6fr) auto; align-items: end; gap: .75rem; }
+label { font-weight: 600; display: grid; gap: .3rem; }
+input, select, button { min-height: 44px; padding: .5rem .8rem; font: inherit; color: inherit; border: 1px solid #77909f; border-radius: .4rem; background: white; }
+input, select { width: 100%; }
+button { cursor: pointer; font-weight: 650; }
+button.primary { background: #006457; color: white; border-color: #006457; }
+button:disabled { opacity: .55; cursor: default; }
+:focus-visible { outline: 3px solid #166cdf; outline-offset: 2px; }
+.scroll { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: .7rem .65rem; border-bottom: 1px solid #dce5eb; }
+thead { background: #edf3f7; }
+.error { background: #ffe9e7; color: #8c231b; border: 1px solid #e5afaa; border-radius: .4rem; padding: .8rem; margin-bottom: 1rem; }
+@media (max-width: 700px) { form.create { grid-template-columns: 1fr; } }
